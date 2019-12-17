@@ -592,6 +592,7 @@ def dcm2euler(dcm, rot_seq='zyx'):
     else:
         return False
 
+#SONG: ecef frame先绕z转lon，再绕y转 -π/2-lat,得到ecef', 它和local ned一个方向，但ecef'的原点还在地心。
 def ecef_to_ned(lat, lon):
     '''
     transformation matrix from the ECEF frame to the NED frame defined by lat and lon.
@@ -675,7 +676,7 @@ def quat_update(q, w, dt):
     q = quat_normalize(q)
     return q
 
-def euler_update_zyx(x, w, dt):
+def euler_update_zyx(x, w, dt): # SONG: 参考P32 表2-2
     '''
     Update Euler angles.
     Rotation sequence is zyx [phi theta psi], rad.

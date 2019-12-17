@@ -15,12 +15,12 @@ import numpy as np
 
 # global
 VERSION = '1.0'
-GM = 3.986004418e14                 # m3/(s2)
-Re = 6378137                        # m
-FLATTENING = 1/298.257223563        # Earth flattening, f = (a-b)/a
-ECCENTRICITY = 0.0818191908426215   # Earth eccentricy, e2 = 2*f-f^2
-E_SQR = ECCENTRICITY**2             # squared eccentricity
-W_IE = 7292115e-11                  # Earth's rotation rate
+GM = 3.986004418e14                 # m3/(s2)   万有引力常量G * 地球质量 M : 6.67*10^-11 * 5.9722*10^24
+Re = 6378137                        # m 地球赤道半径
+FLATTENING = 0.00335281066475       # Earth flattening, f = (a-b)/a
+ECCENTRICITY = 0.0818191908426215   # Earth eccentricy, e2 = 2*f-f^2   e
+E_SQR = 0.00669437999014            # squared eccentricity. e2
+W_IE = 7292115e-11                  # Earth's rotation rate 地球自转的角速度，rad/s
 
 def geo_param(pos):
     """
@@ -40,6 +40,7 @@ def geo_param(pos):
     normal_gravity = 9.7803253359
     k = 0.00193185265241        # WGS-84 gravity model constant. For more details, refer to
                                 # https://en.wikipedia.org/wiki/Gravity_of_Earth
+                                # k = (b*Gp-a*Ge)/(a*Ge), a和b是地球长短轴，Ge和Gp分别为赤道和南北极的重力加速度。
     m = 0.00344978650684        # m = w*w*a*a*b/GM
     # calc
     sl = math.sin(pos[0])
@@ -48,7 +49,7 @@ def geo_param(pos):
     h = pos[2]
     rm = (Re*(1 - E_SQR)) / (math.sqrt(1.0 - E_SQR*sl_sqr) * (1.0 - E_SQR*sl_sqr))
     rn = Re / (math.sqrt(1.0 - E_SQR*sl_sqr))
-    g1 = normal_gravity * (1 + k*sl_sqr) / math.sqrt(1.0 - E_SQR*sl_sqr)
+    g1 = normal_gravity * (1 + k*sl_sqr) / math.sqrt(1.0 - E_SQR*sl_sqr)  # 根据纬度theta，地球椭球体的离心率e和k，求地球任意纬度的重力加速度。
     g = g1 * (1.0 - (2.0/Re) * (1.0 + FLATTENING + m - 2.0*FLATTENING*sl_sqr)*h + 3.0*h*h/Re/Re)
     return rm, rn, g, sl, cl, W_IE
 
@@ -79,7 +80,7 @@ def lla2ecef(lla):
     cl = math.cos(lla[0])
     sl_sqr = sl * sl
 
-    r = Re / math.sqrt(1.0 - E_SQR*sl_sqr)
+    r = Re / math.sqrt(1.0 - E_SQR*sl_sqr) # r即rn
     rho = (r + lla[2]) * cl
     x = rho * math.cos(lla[1])
     y = rho * math.sin(lla[1])
