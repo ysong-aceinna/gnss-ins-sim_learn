@@ -372,6 +372,7 @@ class Sim(object):
         '''
         Generate data
         '''
+        # 如果传入参数是路径，则从文件生成数据;如果是文件，则从motion def文件生成数据。
         if os.path.isdir(self.data_src):    # gen data from files in a directory
             self.data_src = os.path.abspath(self.data_src)
             self.__gen_data_from_files()
@@ -440,11 +441,16 @@ class Sim(object):
         # environment-->vibraition params
         vib_def = self.__parse_env(self.env)
         for i in range(self.sim_count):
-            accel = pathgen.acc_gen(self.fs[0], self.dmgr.ref_accel.data,
-                                    self.imu.accel_err, vib_def)
+            no_noise = False #原始为 True ，即有噪声。 False  是没有添加噪声
+            if no_noise:
+                accel = np.copy(self.dmgr.ref_accel.data)
+                gyro = np.copy(self.dmgr.ref_gyro.data)
+            else:
+                accel = pathgen.acc_gen(self.fs[0], self.dmgr.ref_accel.data,
+                                        self.imu.accel_err, vib_def)
+                gyro = pathgen.gyro_gen(self.fs[0], self.dmgr.ref_gyro.data,\
+                                        self.imu.gyro_err)
             self.dmgr.add_data(self.dmgr.accel.name, accel, key=i)
-            gyro = pathgen.gyro_gen(self.fs[0], self.dmgr.ref_gyro.data,\
-                                    self.imu.gyro_err)
             self.dmgr.add_data(self.dmgr.gyro.name, gyro, key=i)
             if self.imu.gps:
                 gps = pathgen.gps_gen(self.dmgr.ref_gps.data, self.imu.gps_err,\

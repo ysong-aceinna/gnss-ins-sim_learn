@@ -13,3 +13,6 @@ __pycache__/
 
 # mag calibration algorithm camke dir
 /demo_algorithms/mag_calibrate_src/cmake/
+
+# for mac
+.DS_Store
