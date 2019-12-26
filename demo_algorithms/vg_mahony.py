@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# Filename: algo_test.py
+# Filename: vg_mahony.py
 
 """
 An algorithm for test.

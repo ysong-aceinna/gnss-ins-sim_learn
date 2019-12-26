@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# Filename: demo_test.py
+# Filename: demo_mahony.py
 
 """
 Created on 2019-12-17
@@ -38,12 +38,12 @@ def mahony_filter_test():
 
     #### Algorithm
     # mahony filter in a virtual inertial frame.
-    from demo_algorithms import vg_ahrs_algo_mahony
+    from demo_algorithms import vg_mahony
     '''
     calculate pitch, roll (and yaw if input mag data) by mahony filter.
     '''
     # create the algorith object
-    algo = vg_ahrs_algo_mahony.MahonyTest()
+    algo = vg_mahony.MahonyTest()
 
     #### start simulation
     sim = ins_sim.Sim([fs, 0.0, 0.0],
