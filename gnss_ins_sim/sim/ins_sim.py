@@ -441,8 +441,8 @@ class Sim(object):
         # environment-->vibraition params
         vib_def = self.__parse_env(self.env)
         for i in range(self.sim_count):
-            no_noise = False #原始为 True ，即有噪声。 False  是没有添加噪声
-            if no_noise:
+            add_noise = True #默认为 True:添加噪声; False:不添加噪声
+            if not add_noise:
                 accel = np.copy(self.dmgr.ref_accel.data)
                 gyro = np.copy(self.dmgr.ref_gyro.data)
             else:
