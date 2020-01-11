@@ -5,6 +5,10 @@
 An algorithm for test.
 Created on 2019-12-17
 @author: Ocean
+
+和vg_ekf.py的不同点，仅仅是h和H的不同。从测试效果看，误差比vg_ekf.py小。
+vg_ekf.py：使用q推导h和H。
+vg_ekf1.py：使用pitch和roll推导h和H。
 """
 
 import numpy as np
@@ -81,7 +85,7 @@ class VGEKFTest(object):
             omega = self.cal_big_omega_matrix(gyro[i] - self.w_bias) # shape [4x4]
             xi = self.cal_big_xi_matrix(self.q) # shape [4x3]
             f = self.update_f(omega, xi, self.dt) # shape [7x7]
-            F = np.copy(f) #这里的状态转移模型是线性的，所以f和F相同。
+            F = np.copy(f) #这里的状态转移模型是线性的，所以f和F相同。# shape [7x7]
 
             #predict states by f and last states.
             last_states = np.hstack((self.q, self.w_bias)) # shape [7x1]
@@ -222,9 +226,11 @@ class VGEKFTest(object):
         h = np.zeros((3, 1))
         q = pred_states[0:4]
 
-        h[0] = 2*q[1]*q[3] - 2*q[0]*q[2]
-        h[1] = 2*q[0]*q[1] + 2*q[2]*q[3]
-        h[2] = q[0]*q[0] - q[1]*q[1] - q[2]*q[2] + q[3]*q[3]
+        [yaw, pitch, roll] = attitude.quat2euler(q)
+
+        h[0] = -math.sin(pitch)
+        h[1] = math.sin(roll)*math.cos(pitch)
+        h[2] = math.cos(roll)*math.cos(pitch)
         return -h
 
     def update_H(self, pred_states):
@@ -239,21 +245,15 @@ class VGEKFTest(object):
         # H = np.zeros((3, 4))
         H = np.zeros((3, 7))
         q = pred_states[0:4]
+        [yaw, pitch, roll] = attitude.quat2euler(q)
 
-        H[0][0] = -q[2]
-        H[0][1] =  q[3]
-        H[0][2] = -q[0]
-        H[0][3] =  q[1]
-        H[1][0] =  q[1]
-        H[1][1] =  q[0]
-        H[1][2] =  q[3]
-        H[1][3] =  q[2]
-        H[2][0] =  q[0]
-        H[2][1] = -q[1]
-        H[2][2] = -q[2]
-        H[2][3] =  q[3]
+        H[0][0] = math.cos(pitch)
+        H[1][0] = math.sin(pitch)*math.sin(roll)
+        H[1][1] = -math.cos(pitch)*math.cos(roll)
+        H[2][0] = math.sin(pitch)*math.cos(roll)
+        H[2][1] = math.sin(roll)*math.cos(pitch)
 
-        return 2*H
+        return H
 
     def update_Q(self, q, wb, t, bi, arw):
         '''

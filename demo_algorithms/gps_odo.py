@@ -91,7 +91,7 @@ class OdometerSim(object):
             if self.run_times > self.set_of_inis:
                 idx = 0
             # Earth gravity
-            if self.gravity is None:
+            if self.gravity is None: #根据 motion file 提供的初始位置计算当地的gravity。
                 earth_param = geoparams.geo_param(self.r0)    # geo parameters
                 g_n = np.array([0, 0, earth_param[2]]) # r0[LLA]处的g_n
             else:
@@ -103,7 +103,7 @@ class OdometerSim(object):
                     self.att[i, :] = self.att0[:, idx]
                     self.pos[i, :] = geoparams.lla2ecef(self.r0[:, idx])
                     self.vel_b[i, :] = self.v0[:, idx]
-                    c_bn = attitude.euler2dcm(self.att[i, :]) #c_bn: body frame 到 nav frame的旋转矩阵。
+                    c_bn = attitude.euler2dcm(self.att[i, :]) #c_bn: from ned to body的旋转矩阵。
                     self.vel[i, :] = c_bn.T.dot(self.vel_b[i, :])
                     continue
                 #### propagate Euler angles
