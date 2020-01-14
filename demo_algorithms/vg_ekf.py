@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
-# Filename: vg_mahony.py
+# Filename: vg_ekf.py
 
 """
-An algorithm for test.
+An algorithm for vg ekf test.
 Created on 2019-12-17
 @author: Ocean
 """
@@ -98,8 +98,9 @@ class VGEKFTest(object):
             # Q = self.update_Q(pred_q, pred_wb, self.dt, bi, arw)
 
             #Covariance Estimate.
-            P_ = F * P * F.T + Q; #shape [7x7]
-            
+            # P_ = F * P * F.T + Q; #shape [7x7]
+            P_ = np.dot(np.dot(F, P), F.T) + Q #shape [6x6]
+
             # update Measurement by predict states.
             h = self.update_h(pred_states) #shape [3x1]
             H = self.update_H(pred_states) #shape [3x7]   有效 [3x4],后边3列补0
@@ -113,7 +114,7 @@ class VGEKFTest(object):
 
             self.q = attitude.quat_normalize(update_states[0:4]) #shape [4x1]
             self.w_bias = update_states[4:7] #shape [3x1]
-            # print(self.w_bias)
+            print(self.w_bias)
             # euler = attitude.quat2euler(self.q) / D2R
             # print("pred yaw:{0:0.3f} ,pitch:{1:0.3f}, roll:{2:0.3f}".format(euler[0], euler[1], euler[2]))
 
