@@ -6,8 +6,10 @@ An algorithm for ahrs ekf test.
 Created on 2020-01-11
 @author: Ocean
 
-选取状态量：[q0, q1, q2, q3, wb_x, wb_y, wb_z]
-选取观测量：[accel]  # 只选accel作为观测量的话还是欠缺了点，因为没有用到mag的信息。但如果把mag也作为观测量，其推导又非常复杂。
+选取状态量：[yaw, pitch, roll, wb_x, wb_y, wb_z]
+选取观测量：[acc, mag]
+
+因为选取mag做观测量的话，H的推导特别特别复杂，因为没有推导出来，所以这个版本的 ahrs ekf并没有实现。
 """
 
 import numpy as np
@@ -26,11 +28,8 @@ class AHRSEKFTest(object):
         '''
         # algorithm description
         self.input = ['fs', 'gyro', 'accel', 'mag']
-        self.output = ['att_quat'] #  ['att_quat'];  ['att_euler'] units: ['rad', 'rad', 'rad']
+        self.output = ['att_euler'] #  ['att_quat'];  ['att_euler'] units: ['rad', 'rad', 'rad']
         self.results = None
-
-        self.w_bias = np.ones(3) * 0.0001
-        self.q = np.array([1.0, 0.0, 0.0, 0.0]) #上一时刻的attitude
 
         self.ref_frame = 1
         self.dt = 1.0
@@ -49,7 +48,7 @@ class AHRSEKFTest(object):
                 fs: sample frequency, Hz
                 gyro: numpy array of size (n,3), rad/s
                 accel: numpy array of size (n,3), m/s/s
-                mag: numpy array of size (n,3), μT
+                mag: numpy array of size (n,3), Gauss
         '''
         D2R = math.pi/180
         self.run_times += 1
@@ -57,10 +56,11 @@ class AHRSEKFTest(object):
         self.dt = 1.0 / set_of_input[0]
         gyro = set_of_input[1] # rad/sec
         accel = set_of_input[2] # m/s^2
-        mag = set_of_input[3] # μT  # 1Gauss = 100μT,  1μT = 0.01Gauss 
+        mag = set_of_input[3] # μT
 
         n = accel.shape[0]
-        self.qs = np.zeros((n, 4))
+        self.att = np.zeros((n, 3))
+        self.w_bias = np.ones(3) * 0.0001
 
         # init start
         init_n = 10 #use init_n accel datas to cal init attitude.
@@ -69,105 +69,60 @@ class AHRSEKFTest(object):
 
         acc_mean = np.mean(accel[0:init_n], axis=0) # cal mean value for acc.
         mag_mean = np.mean(mag[0:init_n], axis=0) # cal mean value for mag.
-        euler = self.cal_attitude_by_accel_and_mag(acc_mean, mag_mean) #calculate init attitude by accels and mag
-        self.q = attitude.euler2quat(euler)
-        print("init yaw:{0:0.3f} ,pitch:{1:0.3f}, roll:{2:0.3f}".format(euler[0]/D2R, euler[1]/D2R, euler[2]/D2R))
+        self.euler = self.cal_attitude_by_accel_and_mag(acc_mean, mag_mean) #calculate init attitude by accels and mag
+        print("init yaw:{0:0.3f} ,pitch:{1:0.3f}, roll:{2:0.3f}".format(self.euler[0]/D2R, self.euler[1]/D2R, self.euler[2]/D2R))
+
+        # for i in range(n): # 因为感觉生成的mag数据有问题，所以结合accel看以下全程的yaw是否和motion file对应。下边得到的headin是对的。
+        #     euler = self.cal_attitude_by_accel_and_mag(accel[i], mag[i]) #calculate init attitude by accels and mag
+        #     euler = euler / D2R
+        #     print("yaw:{0:0.3f} ,pitch:{1:0.3f}, roll:{2:0.3f}".format(euler[0], euler[1], euler[2]))
 
         for i in range(init_n): #前init_n个姿态用q来填充。
-            self.qs[i] = self.q
+            self.att[i] = self.euler
     
-        P = np.identity(7) * 0.000001 #init P  [7x7]
-        R = np.identity(3) * 0.1 #init R  [3x3]
+        P = np.identity(6) * 0.000001 #init P  [6x6]
+        R = np.identity(6) * 0.1 #init R  [6x6]
         # init done
 
         for i in range(init_n, n): # i is from init_n+1 to n.
             # accel normalize.
             accel[i] /= np.linalg.norm(accel[i], ord=2)
 
-            # # pred_states, f shape [6x1]
-            # pred_states = self.update_f(gyro[i], self.euler, self.dt)
-            # self.update_F(gyro[i], self.euler, self.dt) # shape [6x6]
+            # pred_states, f shape [6x1]
+            pred_states = self.update_f(gyro[i], self.euler, self.dt)
+            self.update_F(gyro[i], self.euler, self.dt) # shape [6x6]
 
-            # construct f and F.   q是上一时刻的姿态
-            omega = self.cal_big_omega_matrix(gyro[i] - self.w_bias) # shape [4x4]
-            xi = self.cal_big_xi_matrix(self.q) # shape [4x3]
-            f = self.update_f(omega, xi, self.dt) # shape [7x7]
-            F = np.copy(f) #这里的状态转移模型是线性的，所以f和F相同。
-
-            #predict states by f and last states.
-            last_states = np.hstack((self.q, self.w_bias)) # shape [7x1]
-            pred_states = np.dot(f, last_states) # shape [7x1]
-
-            pred_q = attitude.quat_normalize(pred_states[0:4]) #shape [4x1]
+            pred_euler = pred_states[0:4] #shape [3x1]
             pred_wb = pred_states[4:7] #shape [3x1]
 
-            # construct Q by bi, arw.
             bi = 6/3600  # Bias Instability of IMU381. 6 deg/hr
             arw = 0.3/60 # Angle Random Walk of IMU381. 0.3 deg/sqr(hr)
-            Q = self.update_Q(self.q, self.w_bias, self.dt, bi, arw) #shape [7x7]
+            Q = self.update_Q(self.euler, self.dt, bi, arw) #shape [6x6]
 
             #Covariance Estimate.
+            # P_ = F * P * F.T + Q; #shape [6x6]
             P_ = np.dot(np.dot(F, P), F.T) + Q #shape [6x6]
 
             # update Measurement by predict states.
-            h = self.update_h(pred_states) #shape [3x1]
-            H = self.update_H(pred_states) #shape [3x7]   有效 [3x4],后边3列补0
+            h = self.update_h(pred_states, mag[i]) #shape [6x1]
+            H = self.update_H(pred_states) #shape [6x6], 有效 [6x3], 后边3列对wb求偏导的部分为0
 
             # cal Kalman gain
-            S = np.dot(np.dot(H, P_), H.T) + R   #shape [3x3]
+            S = np.dot(np.dot(H, P_), H.T) + R   #shape [6x6]
             K = np.dot(np.dot(P_, H.T), np.linalg.inv(S)) #shape [7x3]
 
             # update
-            zk = accel[i] #.reshape(3, 1) # accel measurement.
+            zk = np.zeros((6,1)) # measurement from sensor. [6x1]
+            zk[0:4] = accel[i]   # accel measurement from accel sensor. [3x1]
+            zk[4:7] = mag[i]     # mag measurement from mag sensor. [3x1]
             update_states = pred_states + np.dot(K, (zk - np.squeeze(h))) # update states 
 
-            self.q = attitude.quat_normalize(update_states[0:4]) #shape [4x1]
+            self.euler = attitude.quat_normalize(update_states[0:4]) #shape [4x1]
             self.w_bias = update_states[4:7] #shape [3x1]
-            # print(self.w_bias)
-            self.qs[i] = self.q
+            self.att[i] = self.euler
 
         # results
-        self.results = [self.qs]
-
-    def cal_big_omega_matrix(self, w):
-        '''
-        Calculat big Omega matrix with angular velocity.
-        Args:
-            w: angular velocity, rad/s
-        Returns:
-            big Omega matrix
-            __                       __     
-            |  0    -w_x  -w_y  -w_z  |
-            |  w_x   0     w_z  -w_y  |
-            |  w_y  -w_z    0    w_x  |
-            |  w_z   w_y  -w_x    0   |
-            --                       --
-        '''
-        omega = np.zeros((4,4))
-        omega[0, 1:] = -np.copy(w)
-        omega[1:, 0] = np.copy(w.T)
-        omega[1:, 1:] = -attitude.get_cross_mtx(w)
-        return omega
-
-    def cal_big_xi_matrix(self, q):
-        '''
-        calculate Ξ matrix.
-        Args:
-            q: quaternion, scalar first.
-        Returns:
-            Ξ matrix.
-
-            __               __     
-            |  -q1  -q2  -q3  |
-            |   q0  -q3   q2  |
-            |   q3   q0  -q1  |
-            |  -q2   q1   q0  |
-            --               --
-        '''
-        xi = np.zeros((4, 3))
-        xi[0, :] = -q[1:]
-        xi[1:, 0:] = q[0]*np.identity(3) + attitude.get_cross_mtx(q[1:])
-        return xi
+        self.results = [self.att]
 
     def cal_pitch_roll_by_accel(self, acc):
         '''
@@ -206,20 +161,33 @@ class AHRSEKFTest(object):
 
         return np.array([yaw, pitch, roll])
 
-    def update_f(self, omega, xi, t):
+    def update_f(self, w, euler, dt):
         '''
         update f, the state-transition matrix f(x,u).
         Args:
-            omega: omega matrix which is calculated by cal_big_omega_matrix
-            xi: xi matrix which is calculated by cal_big_xi_matrix
-            t: delta time.
+            euler: [yaw, pitch, roll], rad
+            w: angular velocity, rad/s
+            dt: delta time.
         Returns:
             f, the state-transition matrix.
-        '''        
-        f = np.zeros((7, 7))
-        f[0:4, 0:4] = np.identity(4) + 0.5 * omega * t
-        f[0:4, 4:7] = -0.5 * xi * t
-        f[4:7, 4:7] = np.identity(3)
+        '''
+        [wx, wy, wz] = w - self.w_bias
+
+        psi   = euler[0] # yaw   at (t-1)
+        theta = euler[1] # pitch at (t-1)
+        phi   = euler[2] # roll  at (t-1)
+
+        c_theta = math.cos(theta)
+        tan_theta = math.tan(theta)
+        s_phi = math.sin(phi)
+        c_phi = math.cos(phi)
+
+        f = np.zeros((6, 1))
+        f[0] = psi + (wz * c_phi + wy * s_phi) * dt / c_theta
+        f[1] = theta + (wy * c_phi - wz * s_phi) * dt
+        f[2] = phi + (wx + (wz * c_phi + wy * s_phi) * tan_theta) * dt
+        f[3:6] = self.w_bias.reshape(3,1)
+
         return f
 
     def update_F(self, w, euler, dt):
@@ -266,22 +234,51 @@ class AHRSEKFTest(object):
         F[3:6, 3:6] = np.identity(3)
         return F
 
-    def update_h(self, pred_states):
+    def update_h(self, pred_states, mag):
         '''
         update h, the Measurement Model matrix hk.
         Args:
-            pred_states: [pred_q, pred_wb] which shape is [7x1]
-                         pred_q [4x1], pred_wb [3x1]
+            pred_states: [pred_euler, pred_wb] which shape is [6x1]
+                         pred_euler [3x1], pred_wb [3x1]
+            mag: mag sensor data which in body frame and have been calibrated.
         Returns:
             h, the Measurement Model matrix.
         '''
-        h = np.zeros((3, 1))
-        q = pred_states[0:4]
+        euler = pred_states[0:3]
+        psi   = euler[0]
+        theta = euler[1]
+        phi   = euler[2]
+        s_theta = math.sin(theta)
+        c_theta = math.cos(theta)
+        s_phi = math.sin(phi)
+        c_phi = math.cos(phi)
 
-        h[0] = 2*q[1]*q[3] - 2*q[0]*q[2]
-        h[1] = 2*q[0]*q[1] + 2*q[2]*q[3]
-        h[2] = q[0]*q[0] - q[1]*q[1] - q[2]*q[2] + q[3]*q[3]
-        return -h
+        mag = mag / math.sqrt(np.dot(mag, mag))
+        mx = mag[0]
+        my = mag[1]
+        mz = mag[2]
+
+        # m_|_ = R__|_b * mag_b
+        m_perp = np.zeros((3,1))
+        m_perp[0] = mx * c_theta + my * s_theta * s_phi + mz * s_theta * c_phi
+        m_perp[1] = my * c_phi - mz * s_phi
+        m_perp[2] = -mx * s_theta + my * c_theta * s_phi + mz * c_theta * c_phi
+
+        # m_N = [ √(m_|_x*m_|_x + m_|_y*m_|_y), 0, m_|_z]
+        m_N = np.zeros((3,1))
+        m_N[0] = math.sqrt(m_perp[0]*m_perp[0] + m_perp[1]*m_perp[1])
+        m_N[1] = 0
+        m_N[2] = m_perp[2]
+
+        # m_b是根据观测模型得到的mag在body系下的测量值
+        c_bn = attitude.euler2dcm(euler)
+        m_b = c_bn * m_N  #shape [3x1]
+
+        h = np.zeros((6, 1))
+        h[0:4] = np.array([s_theta, -s_phi * c_theta, -c_phi * c_theta])
+        h[4:7] = m_b
+
+        return h
 
     def update_H(self, pred_states):
         '''
@@ -292,62 +289,48 @@ class AHRSEKFTest(object):
         Returns:
             H, the Jacobian Matrix of hk.
         '''
-        # H = np.zeros((3, 4))
-        H = np.zeros((3, 7))
-        q = pred_states[0:4]
+        H = np.zeros((6, 6))
+        # !!! H 实际上没有推导出来，太麻烦了!!!
+        return H
 
-        H[0][0] = -q[2]
-        H[0][1] =  q[3]
-        H[0][2] = -q[0]
-        H[0][3] =  q[1]
-        H[1][0] =  q[1]
-        H[1][1] =  q[0]
-        H[1][2] =  q[3]
-        H[1][3] =  q[2]
-        H[2][0] =  q[0]
-        H[2][1] = -q[1]
-        H[2][2] = -q[2]
-        H[2][3] =  q[3]
-
-        return 2*H
-
-    def update_Q(self, q, wb, t, bi, arw):
+    def update_Q(self, euler, dt, bi, arw):
         '''
         update Q, the covariance of state-transition matrix.
         Args:
             q: quaternion, scalar first.
             wb: gyro bias.
-            t: delta time.
+            dt: delta time.
             bi: Bias Instability
-            arw: Angle Random Walk
+            arw: Angle Random Walk, deg/sec
         Returns:
             Q.
         '''
-        Q = np.zeros((7, 7))
-        sigma_q = np.zeros((4, 4))
-        sigma_q[0][0] = 1 - q[0]*q[0]
-        sigma_q[0][1] = -q[0]*q[1]
-        sigma_q[0][2] = -q[0]*q[2]
-        sigma_q[0][3] = -q[0]*q[3]
-        sigma_q[1][0] = -q[0]*q[1]
-        sigma_q[1][1] = 1 - q[1]*q[1]
-        sigma_q[1][2] = -q[1]*q[2]
-        sigma_q[1][3] = -q[1]*q[3]
-        sigma_q[2][0] = -q[0]*q[2]
-        sigma_q[2][1] = -q[1]*q[2]
-        sigma_q[2][2] = 1 - q[2]*q[2]
-        sigma_q[2][3] = -q[2]*q[3]
-        sigma_q[3][0] = -q[0]*q[3]
-        sigma_q[3][1] = -q[1]*q[3]
-        sigma_q[3][2] = -q[2]*q[3]
-        sigma_q[3][3] = 1 - q[3]*q[3]
-        sigma_q = (0.5*arw*t)*(0.5*arw*t)*sigma_q
+        D2R = math.pi/180
+        wn_x = arw * D2R
+        wn_y = wn_x
+        wn_z = wn_x
+
+        psi   = euler[0] # yaw   at (t-1)
+        theta = euler[1] # pitch at (t-1)
+        phi   = euler[2] # roll  at (t-1)
+
+        c_theta = math.cos(theta)
+        tan_theta = math.tan(theta)
+        s_phi = math.sin(phi)
+        c_phi = math.cos(phi)
+
+        n_psi   = -(wn_z * c_phi + wn_y * s_phi) / c_theta * dt
+        n_theta = -(wn_y * c_phi - wn_z * s_phi) * dt
+        n_phi   = -(wn_x + (wn_z * c_phi + wn_y * s_phi) * tan_theta)*dt
+
+        Q = np.zeros((6, 6))
+        Q[0][0] = n_phi * n_phi
+        Q[1][1] = n_theta * n_theta
+        Q[2][2] = n_phi * n_phi
 
         sigma_dd_w = (2*math.pi/math.log(2,math.e)) * (bi*bi/arw)
-        sigma_wb = (sigma_dd_w*t)*(sigma_dd_w*t)*np.identity(3)
-
-        Q[0:4, 0:4] = sigma_q
-        Q[4:7, 4:7] = sigma_wb
+        sigma_wb = (sigma_dd_w*dt)*(sigma_dd_w*dt)*np.identity(3)
+        Q[3:6, 3:6] = sigma_wb
 
         # Q = np.ones((7, 7)) * 0.0001
         return Q

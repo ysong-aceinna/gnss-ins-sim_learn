@@ -46,7 +46,7 @@ class AHRSEKFTest(object):
                 fs: sample frequency, Hz
                 gyro: numpy array of size (n,3), rad/s
                 accel: numpy array of size (n,3), m/s/s
-                mag: numpy array of size (n,3), Gauss
+                mag: numpy array of size (n,3), μT
         '''
         D2R = math.pi/180
         self.run_times += 1
