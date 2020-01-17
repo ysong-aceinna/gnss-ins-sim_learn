@@ -120,6 +120,7 @@ class AHRSEKFTest(object):
             # update
             zk = accel[i] #.reshape(3, 1) # accel measurement.
             update_states = pred_states + np.dot(K, (zk - np.squeeze(h))) # update states 
+            # print(i, (zk - np.squeeze(h)) )
 
             self.q = attitude.quat_normalize(update_states[0:4]) #shape [4x1]
             self.w_bias = update_states[4:7] #shape [3x1]

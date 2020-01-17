@@ -58,7 +58,7 @@ class AHRSEKFTest(object):
 
         n = accel.shape[0]
         self.att = np.zeros((n, 3))
-        self.w_bias = np.ones(3) * 0.01
+        self.w_bias = np.ones(3) * 0.000001
 
         # init start
         init_n = 10 #use init_n accel datas to cal init attitude.
@@ -119,7 +119,7 @@ class AHRSEKFTest(object):
             # zk[0:3] = accel[i].reshape(3,1)   # accel measurement from accel sensor. [3x1]
             # zk[3:6] = mag[i].reshape(3,1)     # mag measurement from mag sensor. [3x1]
             zk = (self.cal_attitude_by_accel_and_mag(accel[i], mag[i])).reshape(3, 1)
-            update_states = pred_states + np.dot(K, (zk - (hk))) # update states 
+            update_states = pred_states + np.dot(K, (zk - hk)) # update states 
 
             # self.euler 的 shape 有问题，再调下
             self.euler = np.squeeze(update_states[0:3]) #shape [3x1]

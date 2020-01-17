@@ -40,12 +40,12 @@ def ahrs_ekf_test():
 
     #### Algorithm
     # mahony filter in a virtual inertial frame.
-    from demo_algorithms import ahrs_ekf
+    from demo_algorithms import ahrs_ekf2
     '''
     calculate yaw, pitch, roll by EKF.
     '''
     # create the algorith object
-    algo = ahrs_ekf.AHRSEKFTest()
+    algo = ahrs_ekf2.AHRSEKFTest()
 
     #### start simulation
     sim = ins_sim.Sim([fs, 0.0, 0.0],

@@ -8,6 +8,10 @@ Created on 2020-01-11
 
 选取状态量：[q0, q1, q2, q3, wb_x, wb_y, wb_z]
 选取观测量：[yaw, pitch, roll]
+
+这是目前三个版本中效果最好、误差最小的一个。
+
+注意：accel和q用之前要归一化。
 """
 
 import numpy as np
@@ -29,7 +33,7 @@ class AHRSEKFTest(object):
         self.output = ['att_quat'] #  ['att_quat'];  ['att_euler'] units: ['rad', 'rad', 'rad']
         self.results = None
 
-        self.w_bias = np.ones(3) * 0.0001
+        self.w_bias = np.ones(3) * 0.000001
         self.q = np.array([1.0, 0.0, 0.0, 0.0]) #上一时刻的attitude
 
         self.ref_frame = 1
@@ -76,8 +80,8 @@ class AHRSEKFTest(object):
         for i in range(init_n): #前init_n个姿态用q来填充。
             self.qs[i] = self.q
     
-        P = np.identity(7) * 0.000001 #init P  [7x7]
-        R = np.identity(3) * 0.0001 #init R  [3x3]
+        P = np.identity(7) * 0.00000001 #init P  [7x7]
+        R = np.identity(3) * 0.03 #init R  [3x3]  假设角度误差为1 deg, 即 0.01745 rad, 平方-> 0.0003
         # init done
 
         for i in range(init_n, n): # i is from init_n+1 to n.
@@ -116,15 +120,20 @@ class AHRSEKFTest(object):
             # cal Kalman gain
             S = np.dot(np.dot(H, P_), H.T) + R   #shape [3x3]
             K = np.dot(np.dot(P_, H.T), np.linalg.inv(S)) #shape [7x3]
+            # K = np.zeros((7, 3))
 
             # update
             zk = (self.cal_attitude_by_accel_and_mag(accel[i], mag[i])).reshape(3, 1) #shape [3x1]
             update_states = pred_states + np.squeeze(np.dot(K, (zk - h))) # update states 
+            # print(i, (zk - h) / D2R)
 
             self.q = attitude.quat_normalize(update_states[0:4]) #shape [4x1]
             self.w_bias = update_states[4:7] #shape [3x1]
-            # print(self.w_bias)
+            # print(i, self.w_bias)
             self.qs[i] = self.q
+            # 调试查看 zk和hk的输出是否正确。
+            # self.qs[i] = np.squeeze(attitude.euler2quat(zk))
+            # self.qs[i] = np.squeeze(attitude.euler2quat(h))
 
         # results
         self.results = [self.qs]
@@ -277,6 +286,7 @@ class AHRSEKFTest(object):
         '''
         h = np.zeros((3, 1))
         q = pred_states[0:4]
+        q = attitude.quat_normalize(q)
 
         # [yaw, ptich, roll]
         h[0] = math.atan2(2*(q[1]*q[2] + q[0]*q[3]), q[0]*q[0] + q[1]*q[1] - q[2]*q[2] - q[3]*q[3])
@@ -294,6 +304,7 @@ class AHRSEKFTest(object):
             H, the Jacobian Matrix of hk.
         '''
         q = pred_states[0:4]
+        q = attitude.quat_normalize(q)
 
         # yaw = arctan2(yA, yB)
         yA = 2*(q[1]*q[2] + q[0]*q[3])
