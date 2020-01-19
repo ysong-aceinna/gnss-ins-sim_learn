@@ -453,14 +453,23 @@ class Sim(object):
             self.dmgr.add_data(self.dmgr.accel.name, accel, key=i)
             self.dmgr.add_data(self.dmgr.gyro.name, gyro, key=i)
             if self.imu.gps:
-                gps = pathgen.gps_gen(self.dmgr.ref_gps.data, self.imu.gps_err,\
-                                                   self.ref_frame)
+                if not add_noise:
+                    gps = np.copy(self.dmgr.ref_gps.data)
+                else:
+                    gps = pathgen.gps_gen(self.dmgr.ref_gps.data, self.imu.gps_err,\
+                                                    self.ref_frame)
                 self.dmgr.add_data(self.dmgr.gps.name, gps, key=i)
             if self.imu.magnetometer:
-                mag = pathgen.mag_gen(self.dmgr.ref_mag.data, self.imu.mag_err)
+                if not add_noise:
+                    mag = np.copy(self.dmgr.ref_mag.data)
+                else:
+                    mag = pathgen.mag_gen(self.dmgr.ref_mag.data, self.imu.mag_err)
                 self.dmgr.add_data(self.dmgr.mag.name, mag, key=i)
             if self.imu.odo:
-                odo = pathgen.odo_gen(self.dmgr.ref_odo.data, self.imu.odo_err)
+                if not add_noise:
+                    odo = np.copy(self.dmgr.ref_odo.data)
+                else:
+                    odo = pathgen.odo_gen(self.dmgr.ref_odo.data, self.imu.odo_err)
                 self.dmgr.add_data(self.dmgr.odo.name, odo, key=i)
 
     def __get_data_name_and_key(self, file_name):

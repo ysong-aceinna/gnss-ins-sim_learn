@@ -65,6 +65,11 @@ class AHRSEKFTest(object):
 
         n = accel.shape[0]
         self.qs = np.zeros((n, 4))
+        
+        # 把self.w_bias and self.q 再初始化一次
+        # 原因是，如果设置跑n次算法时，只有第一次用的是初始self.w_bias。
+        self.w_bias = np.ones(3) * 0.000001
+        self.q = np.array([1.0, 0.0, 0.0, 0.0]) #上一时刻的attitude
 
         # init start
         init_n = 10 #use init_n accel datas to cal init attitude.
