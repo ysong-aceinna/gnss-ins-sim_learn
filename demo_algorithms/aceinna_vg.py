@@ -9,6 +9,7 @@ Created on 2018-03-15
 
 # import
 import os
+import sys
 import struct
 import platform
 import math
@@ -130,14 +131,20 @@ class DMU380Sim(object):
         Args:
             config_file: a configuration file
         '''
-        self.ext = '.so'
         # platform
-        if platform.system() == 'Windows':
+        if sys.platform.startswith('win'):
             self.ext = '.dll'
             if struct.calcsize("P") == 8:
                 self.ext = '-x64' + self.ext
             else:
                 self.ext = '-x86' + self.ext
+        elif sys.platform.startswith('linux') or sys.platform.startswith('cygwin'):
+            self.ext = '.so'
+        elif sys.platform.startswith('darwin'):
+            self.ext = '.dylib'
+        else:
+            raise EnvironmentError('Unsupported platform')
+
         # algorithm description
         self.input = ['fs', 'gyro', 'accel']
         self.output = ['algo_time', 'att_euler', 'wb']
@@ -146,7 +153,8 @@ class DMU380Sim(object):
         # algorithm vars
         this_dir = os.path.dirname(__file__)
         self.config_lib = os.path.join(this_dir, 'dmu380_sim_lib/libsim_utilities' + self.ext)
-        self.sim_lib = os.path.join(this_dir, 'dmu380_sim_lib/aceinna_vg' + self.ext)
+        # self.sim_lib = os.path.join(this_dir, 'dmu380_sim_lib/aceinna_vg' + self.ext)
+        self.sim_lib = os.path.join(this_dir, 'dmu380_sim_lib/libdmu380_algo_sim' + self.ext)
         if not (os.path.exists(self.config_lib) and os.path.exists(self.sim_lib)):
             if not self.build_lib():
                 raise OSError('Shared libs not found.')
@@ -251,7 +259,9 @@ class DMU380Sim(object):
         this_dir = os.path.dirname(__file__)
         # get dir containing the source code
         if src_dir is None:
-            src_dir = os.path.join(this_dir, '//home//dong//c_projects//dmu380_sim_src//')
+            # src_dir = os.path.join(this_dir, '//home//dong//c_projects//dmu380_sim_src//')
+            src_dir = os.path.join(this_dir, 
+                    '/Users/songyang/project/code/c_projects/dmu380_sim_src//')
         if not os.path.exists(src_dir):
             print('Source code directory ' + src_dir + ' does not exist.')
             return False
@@ -261,8 +271,8 @@ class DMU380Sim(object):
         if not os.path.exists(dst_dir):
             os.mkdir(dst_dir)
 
-        algo_lib = 'libdmu380_algo_sim.so'
-        sim_utilities_lib = 'libsim_utilities.so'
+        algo_lib = 'libdmu380_algo_sim' + self.ext 
+        sim_utilities_lib = 'libsim_utilities' + self.ext 
         # get current workding dir
         cwd = os.getcwd()
         # create the cmake dir
