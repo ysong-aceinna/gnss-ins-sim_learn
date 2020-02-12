@@ -89,13 +89,9 @@ class AHRSEKFTest(object):
         R = np.identity(3) * 0.03 #init R  [3x3]  假设角度误差为1 deg, 即 0.01745 rad, 平方-> 0.0003
         # init done
 
-        for i in range(init_n, n): # i is from init_n+1 to n.
+        for i in range(init_n, n): # i is from init_n to n-1.
             # accel normalize.
             accel[i] /= np.linalg.norm(accel[i], ord=2)
-
-            # # pred_states, f shape [6x1]
-            # pred_states = self.update_f(gyro[i], self.euler, self.dt)
-            # self.update_F(gyro[i], self.euler, self.dt) # shape [6x6]
 
             # construct f and F.   q是上一时刻的姿态
             omega = self.cal_big_omega_matrix(gyro[i] - self.w_bias) # shape [4x4]
@@ -109,23 +105,25 @@ class AHRSEKFTest(object):
 
             pred_q = attitude.quat_normalize(pred_states[0:4]) #shape [4x1]
             pred_wb = pred_states[4:7] #shape [3x1]
+            # self.qs[i] = pred_q   #for debug
 
             # construct Q by bi, arw.
             bi = 6/3600  # Bias Instability of IMU381. 6 deg/hr
             arw = 0.3/60 # Angle Random Walk of IMU381. 0.3 deg/sqr(hr)
             Q = self.update_Q(self.q, self.w_bias, self.dt, bi, arw) #shape [7x7]
 
-            #Covariance Estimate.
+            # Covariance Estimate. P_ is symmetric
             P_ = np.dot(np.dot(F, P), F.T) + Q #shape [7x7]
 
             # update Measurement by predict states.
             h = self.update_h(pred_states) #shape [3x1]
             H = self.update_H(pred_states) #shape [3x7]   有效 [3x4],后边3列补0
 
-            # cal Kalman gain
+            # cal Kalman gain. S is symmetric
             S = np.dot(np.dot(H, P_), H.T) + R   #shape [3x3]
             K = np.dot(np.dot(P_, H.T), np.linalg.inv(S)) #shape [7x3]
-            # K = np.zeros((7, 3))
+            # K = np.zeros((7, 3))  # K设为0，使最终输出的结果为预测值，方便调试。
+            # P = np.dot((np.identity(7) - np.dot(K, H)), P_) # update P
 
             # update
             zk = (self.cal_attitude_by_accel_and_mag(accel[i], mag[i])).reshape(3, 1) #shape [3x1]
