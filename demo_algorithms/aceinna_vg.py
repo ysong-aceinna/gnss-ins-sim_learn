@@ -15,7 +15,6 @@ import platform
 import math
 import numpy as np
 from ctypes import *
-from gnss_ins_sim.utility import utility
 
 # globals
 VERSION = '1.0'
@@ -181,7 +180,6 @@ class DMU380Sim(object):
                 mag: numpy array of size (n,3), Gauss
         '''
         # get input
-        utility.save_motion_data(self.input, set_of_input)
         fs = set_of_input[0]
         gyro = set_of_input[1]
         accel = set_of_input[2]

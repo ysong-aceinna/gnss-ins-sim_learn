@@ -24,16 +24,15 @@ def test_dmu380_sim():
     test Sim with DMU380 algorithm.
     '''
     #### choose a built-in IMU model, typical for IMU380
-    n = 1.0 # 1.0: add noise; 0.0: without noise.
-    imu_err = {'gyro_b': np.array([1.0, -1.0, 0.5]) * n,
-               'gyro_arw': np.array([0.25, 0.25, 0.25]) * n,
-               'gyro_b_stability': np.array([3.5, 3.5, 3.5]) * n,
+    imu_err = {'gyro_b': np.array([1.0, -1.0, 0.5]) * 1.0,
+               'gyro_arw': np.array([0.25, 0.25, 0.25]) * 1.0,
+               'gyro_b_stability': np.array([3.5, 3.5, 3.5]) * 1.0,
                'gyro_b_corr': np.array([100.0, 100.0, 100.0]),
                'accel_b': np.array([50.0e-3, 50.0e-3, 50.0e-3]) * 0.0,
-               'accel_vrw': np.array([0.03119, 0.03009, 0.04779]) * n,
-               'accel_b_stability': np.array([4.29e-5, 5.72e-5, 8.02e-5]) * n,
+               'accel_vrw': np.array([0.03119, 0.03009, 0.04779]) * 1.0,
+               'accel_b_stability': np.array([4.29e-5, 5.72e-5, 8.02e-5]) * 1.0,
                'accel_b_corr': np.array([200.0, 200.0, 200.0]),
-               'mag_std': np.array([0.2, 0.2, 0.2]) * n
+               'mag_std': np.array([0.2, 0.2, 0.2]) * 1.0
               }
     # do not generate GPS and magnetometer data
     imu = imu_model.IMU(accuracy=imu_err, axis=6, gps=False)
@@ -46,7 +45,7 @@ def test_dmu380_sim():
 
     #### start simulation
     sim = ins_sim.Sim([fs, 0.0, fs],
-                      motion_def_path+"//motion_def-90deg_turn.csv", # motion_def motion_def-90deg_turn   motion_def-static
+                      motion_def_path+"//motion_def-static.csv",
                     #   ".//demo_saved_data//car_test_20180929//",
                       ref_frame=1,
                       imu=imu,
