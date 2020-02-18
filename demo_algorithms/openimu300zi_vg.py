@@ -22,87 +22,7 @@ VERSION = '1.0'
 
 R2D = 180.0 / math.pi
 
-class SIM_COMFIG(Structure):
-    '''
-    read config params from file, and put params in this structure
-    '''
-    _fields_ = [("_pktType", c_bool),
-                ("pktType", c_uint8),
-                ("_inputDataRate", c_bool),
-                ("inputDataRate", c_uint8),
-                ("_outputDataRate", c_bool),
-                ("outputDataRate", c_uint8),
-                ("_rsType", c_bool),
-                ("rsTypeStr", c_char * 64),
-                ("_dmuVersion", c_bool),
-                ("dmuVersionStr", c_char * 64),
-                ("_hasMags", c_bool),
-                ("hasMags", c_bool),
-                ("_useMags", c_bool),
-                ("useMags", c_bool),
-                ("_hasGps", c_bool),
-                ("hasGps", c_bool),
-                ("_useGps", c_bool),
-                ("useGps", c_bool),
-                ("_algorithm", c_bool),
-                ("algorithm", c_bool),
-                ("_freeIntegrate", c_bool),
-                ("freeIntegrate", c_bool),
-                ("_dynamicMotion", c_bool),
-                ("dynamicMotion", c_bool),
-                ("_stationaryLockYaw", c_bool),
-                ("stationaryLockYaw", c_bool),
-                ("_turnSwitchThreshold", c_bool),
-                ("turnSwitchThreshold", c_ushort),
-                ("_hardIron_X", c_bool),
-                ("hardIron_X", c_float),
-                ("_hardIron_Y", c_bool),
-                ("hardIron_Y", c_float),
-                ("_softIronScaleRatio", c_bool),
-                ("softIronScaleRatio", c_float),
-                ("_softIronAngle", c_bool),
-                ("softIronAngle", c_float),
-                ("_headingTrackOffset", c_bool),
-                ("headingTrackOffset", c_ushort),
-                ("_accelLPFType", c_bool),
-                ("accelLPFTypeStr", c_char * 64),
-                ("_accelSwitch", c_bool),
-                ("accelSwitch", c_float),
-                ("_origLlinAcelSwitch", c_bool),
-                ("origLlinAcelSwitch", c_bool),
-                ("_linAccelSwitchDelay", c_bool),
-                ("linAccelSwitchDelay", c_float),
-                ("_Free_Integration_Cntr", c_bool),
-                ("Free_Integration_Cntr", c_float),
-                ("_Stabilize_System", c_bool),
-                ("Stabilize_System", c_float),
-                ("_Initialize_Attitude", c_bool),
-                ("Initialize_Attitude", c_float),
-                ("_High_Gain_AHRS", c_bool),
-                ("High_Gain_AHRS", c_float),
-                ("_Low_Gain_AHRS", c_bool),
-                ("Low_Gain_AHRS", c_float),
-                ("_Max_GPS_Drop_Time", c_bool),
-                ("Max_GPS_Drop_Time", c_int32),
-                ("_suppressDisgnosticMsgs", c_bool),
-                ("suppressDisgnosticMsgs", c_bool),
-                ("_procCovarMult_rateBias", c_bool),
-                ("procCovarMult_rateBias", c_float),
-                ("_procCovarMult_attitude", c_bool),
-                ("procCovarMult_attitude", c_float),
-                ("_measCovarMult_roll", c_bool),
-                ("measCovarMult_roll", c_float),
-                ("_measCovarMult_pitch", c_bool),
-                ("measCovarMult_pitch", c_float),
-                ("_gpsItow", c_bool),
-                ("gpsItow", c_uint32),
-                ("_tenHertzCntrOffset", c_bool),
-                ("_subFrameCntrOffset", c_bool),
-                ("tenHertzCntrOffset", c_uint8),
-                ("subFrameCntrOffset", c_int8),
-                ("_gpsValid", c_bool),
-                ("gpsValid", c_bool)]
-
+# used to fetch sim result from algorithm.
 class EKF_STATE(Structure):
     '''
     Return EFK state in this structure
@@ -147,28 +67,20 @@ class OpenIMU300ZISim(object):
             raise EnvironmentError('Unsupported platform')
 
         # algorithm description
-        self.input = ['fs', 'gyro', 'accel']
+        self.input = ['fs', 'gyro', 'accel', 'mag']
         self.output = ['algo_time', 'att_euler', 'wb']
         self.batch = True
         self.results = None
         # algorithm vars
         this_dir = os.path.dirname(__file__)
-        self.config_lib = os.path.join(this_dir, 'dmu380_sim_lib/libsim_utilities' + self.ext)
-        # self.sim_lib = os.path.join(this_dir, 'dmu380_sim_lib/aceinna_vg' + self.ext)
         self.sim_lib = os.path.join(this_dir, 'dmu380_sim_lib/libdmu380_algo_sim' + self.ext)
-        if not (os.path.exists(self.config_lib) and os.path.exists(self.sim_lib)):
+        if not (os.path.exists(self.sim_lib)):
             if not self.build_lib():
                 raise OSError('Shared libs not found.')
-        self.parse_config = cdll.LoadLibrary(self.config_lib)
         self.sim_engine = cdll.LoadLibrary(self.sim_lib)
+        self.sim_engine.parseConfigFile(c_char_p(config_file.encode('utf-8')))
         # initialize algorithm
-        self.sim_config = SIM_COMFIG()
-        self.parse_config.parseConfigFile(c_char_p(config_file.encode('utf-8')),\
-                                          pointer(self.sim_config))
-        self.sim_engine.SimInitialize(pointer(self.sim_config))
-        # if mag required?
-        if self.sim_config.hasMags and self.sim_config.useMags:
-            self.input.append('mag')
+        self.sim_engine.SimInitialize()
 
     def run(self, set_of_input):
         '''
@@ -182,6 +94,10 @@ class OpenIMU300ZISim(object):
         '''
         # get input
         # utility.save_motion_data(self.input, set_of_input)
+        # np.save("motion_data.npy", set_of_input)
+        # return
+        # set_of_input = np.load( "ahrs-90deg_noise.npy" )
+        
         fs = set_of_input[0]
         gyro = set_of_input[1]
         accel = set_of_input[2]
@@ -197,8 +113,8 @@ class OpenIMU300ZISim(object):
         output_len = 0
         for i in range(0, n):
             sensor_data = np.zeros((15,))
-            sensor_data[0:3] = gyro[i, :]*R2D
-            sensor_data[3:6] = accel[i, :]/9.80665
+            sensor_data[3:6] = gyro[i, :]*R2D
+            sensor_data[0:3] = accel[i, :]/9.80665
             if 'mag' in self.input:
                 sensor_data[6:9] = mag[i, :]/100.0
             sensorReadings = sensor_data.ctypes.data_as(POINTER(c_double))
@@ -217,6 +133,8 @@ class OpenIMU300ZISim(object):
                 rate_bias[output_len, 1] = ekf_state.kfRateBias[1]
                 rate_bias[output_len, 2] = ekf_state.kfRateBias[2]
                 output_len += 1
+                # print("{0}:{1:0.5f}, {2:0.5f}, {3:0.5f}".format(output_len,
+                #     ekf_state.kfEulerAngles[0],ekf_state.kfEulerAngles[1],ekf_state.kfEulerAngles[2]))
         # results
         self.results = [time_step[0:output_len],\
                         euler_angles[0:output_len, :],\
@@ -243,8 +161,8 @@ class OpenIMU300ZISim(object):
         '''
         Reset the fusion process to uninitialized state.
         '''
-        self.sim_engine = cdll.LoadLibrary(self.sim_lib)
-        self.sim_engine.SimInitialize(pointer(self.sim_config))
+        # self.sim_engine = cdll.LoadLibrary(self.sim_lib)
+        # self.sim_engine.SimInitialize(pointer(self.sim_config))
 
     def build_lib(self, dst_dir=None, src_dir=None):
         '''
@@ -262,7 +180,9 @@ class OpenIMU300ZISim(object):
         # get dir containing the source code
         if src_dir is None:
             src_dir = os.path.join(this_dir, 
-                    '/Users/songyang/project/code/c_projects/dmu380_sim_src//')
+                    # '/Users/songyang/project/code/c_projects/dmu380_sim_src//')
+                    '/Users/songyang/project/code/github/dmu380_sim_src')
+                    # '/media/psf/Home/project/code/github/dmu380_sim_src')
         if not os.path.exists(src_dir):
             print('Source code directory ' + src_dir + ' does not exist.')
             return False
@@ -286,11 +206,13 @@ class OpenIMU300ZISim(object):
         os.chdir(cmake_dir)
         ret = os.system("cmake ..")
         ret = os.system("make")
-        algo_lib = cmake_dir + 'algo//' + algo_lib
+        algo_lib = os.path.join(cmake_dir, 'sim', algo_lib )
+        # algo_lib = cmake_dir + 'sim//' + algo_lib
         sim_utilities_lib = cmake_dir + 'SimUtilities//' + sim_utilities_lib
-        if os.path.exists(algo_lib) and os.path.exists(sim_utilities_lib):
+        # if os.path.exists(algo_lib) and os.path.exists(sim_utilities_lib):
+        if os.path.exists(algo_lib):
             os.system("mv " + algo_lib + " " + dst_dir)
-            os.system("mv " + sim_utilities_lib + " " + dst_dir)
+            # os.system("mv " + sim_utilities_lib + " " + dst_dir)
 
         # restore working dir
         os.chdir(cwd)

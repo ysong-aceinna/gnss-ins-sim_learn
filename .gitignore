@@ -16,5 +16,7 @@ __pycache__/
 
 /virtual_data/
 
+*.npy
+
 # for mac
 .DS_Store

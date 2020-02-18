@@ -15,7 +15,9 @@ from enum import IntEnum
 
 def save_motion_data(input, set_of_input, file=None):
     """
-    Save input data to csv file.
+    Save input data to csv file. Units:
+        accel: g, gyro: deg/sec, mag: Gauss
+
     Args:
         input: tells gnss-ins-sim what data the algorithm need. 
             'input' is a list of strings, such as:

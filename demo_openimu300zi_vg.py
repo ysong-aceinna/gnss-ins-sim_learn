@@ -36,7 +36,7 @@ def test_openimu300zi_sim():
                'mag_std': np.array([0.2, 0.2, 0.2]) * n
               }
     # do not generate GPS and magnetometer data
-    imu = imu_model.IMU(accuracy=imu_err, axis=6, gps=False)
+    imu = imu_model.IMU(accuracy=imu_err, axis=9, gps=False)
 
     #### Algorithm
     # OpenIMU300ZI VG algorithm
@@ -57,8 +57,8 @@ def test_openimu300zi_sim():
     # generate simulation results, summary, and save data to files
     sim.results()  # do not save data
     # plot data
-    # sim.plot(['att_euler'])
-    sim.plot(['att_euler'], opt={'att_euler':'error'})
+    sim.plot(['att_euler'])
+    # sim.plot(['att_euler'], opt={'att_euler':'error'})
 
 if __name__ == '__main__':
     test_openimu300zi_sim()
