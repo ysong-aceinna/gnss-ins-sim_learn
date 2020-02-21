@@ -117,6 +117,7 @@ class AHRSEKFTest(object):
 
             # update Measurement by predict states.
             h = self.update_h(pred_states) #shape [3x1]
+            # H = self.update_H_0(pred_states) #shape [3x7]   有效 [3x4],后边3列补0
             H = self.update_H(pred_states) #shape [3x7]   有效 [3x4],后边3列补0
 
             # cal Kalman gain. S is symmetric
@@ -297,7 +298,7 @@ class AHRSEKFTest(object):
         h[2] = math.atan2(2*(q[2]*q[3] + q[0]*q[1]), q[0]*q[0] - q[1]*q[1] - q[2]*q[2] + q[3]*q[3])
         return h
 
-    def update_H(self, pred_states):
+    def update_H_0(self, pred_states):
         '''
         Update H, the Jacobian Matrix of Measurement Model matrix hk.
         Args:
@@ -335,6 +336,72 @@ class AHRSEKFTest(object):
         H[2][1] = (1 / (1 + rC * rC)) * ((2 * q[0] * rB) + (rA * 2 * q[1])) / (rB * rB)
         H[2][2] = (1 / (1 + rC * rC)) * ((2 * q[3] * rB) + (rA * 2 * q[2])) / (rB * rB)
         H[2][3] = (1 / (1 + rC * rC)) * ((2 * q[2] * rB) - (rA * 2 * q[3])) / (rB * rB)
+
+        return H
+
+    def update_H(self, pred_states):
+        '''
+        Update H, the Jacobian Matrix of Measurement Model matrix hk.
+        Args:
+            pred_states: [pred_q, pred_wb] which shape is [7x1]
+                         pred_q [4x1], pred_wb [3x1]
+        Returns:
+            H, the Jacobian Matrix of hk.
+        '''
+        q = pred_states[0:4]
+        q = attitude.quat_normalize(q)
+        H = np.zeros((3, 7))
+
+        ### yaw = arctan2(yPsi, xPsi)
+        yPsi = 2*(q[1]*q[2] + q[0]*q[3])
+        xPsi = q[0]*q[0] + q[1]*q[1] - q[2]*q[2] - q[3]*q[3]
+
+        denom = yPsi*yPsi + xPsi*xPsi
+        if denom < 1e-3:
+            denom = 1e-3
+        multiplier = 2.0 / denom
+
+        H[0][0] = multiplier * (xPsi * q[3] - yPsi * q[0])
+        H[0][1] = multiplier * (xPsi * q[2] - yPsi * q[1])
+        H[0][2] = multiplier * (xPsi * q[1] + yPsi * q[2])
+        H[0][3] = multiplier * (xPsi * q[0] + yPsi * q[3])
+
+        ### pitch = -arcsin(uTheta)
+        uTheta = 2*(q[1]*q[3] - q[0]*q[2])
+        if uTheta > 1.0:
+            uTheta = 1.0
+        if uTheta < -1.0:
+            uTheta = -1.0
+
+        denom = math.sqrt(1.0 - uTheta*uTheta);
+        if denom < 1e-3:
+            denom = 1e-3
+        multiplier = 2.0 / denom
+
+        if 0:
+            H[1][0] =  multiplier * q[2]
+            H[1][1] = -multiplier * q[3]
+            H[1][2] =  multiplier * q[0]
+            H[1][3] = -multiplier * q[1]
+        else: # follow C-version of openimu EKF.
+            H[1][0] = multiplier * ( q[2] + uTheta * q[0])
+            H[1][1] = multiplier * (-q[3] + uTheta * q[1])
+            H[1][2] = multiplier * ( q[0] + uTheta * q[2])
+            H[1][3] = multiplier * (-q[1] + uTheta * q[3])
+
+        ### roll = arctan2(yPhi, xPhi)
+        yPhi = 2*(q[2]*q[3] + q[0]*q[1])
+        xPhi = q[0]*q[0] - q[1]*q[1] - q[2]*q[2] + q[3]*q[3]
+
+        denom = yPhi * yPhi + xPhi * xPhi
+        if denom < 1e-3:
+            denom = 1e-3
+        multiplier = 2.0 / denom
+
+        H[2][0] = multiplier * (xPhi * q[1] - yPhi * q[0])
+        H[2][1] = multiplier * (xPhi * q[0] + yPhi * q[1])
+        H[2][2] = multiplier * (xPhi * q[3] + yPhi * q[2])
+        H[2][3] = multiplier * (xPhi * q[2] - yPhi * q[3])
 
         return H
 
