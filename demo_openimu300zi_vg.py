@@ -35,8 +35,31 @@ def test_openimu300zi_sim():
                'accel_b_corr': np.array([200.0, 200.0, 200.0]),
                'mag_std': np.array([0.2, 0.2, 0.2]) * n
               }
+
+    imu_err_IMU381 = {'gyro_b': np.array([0.0, 0.0, 0.0]) * n,
+               'gyro_arw': np.array([0.3, 0.3, 0.3]) * n,
+               'gyro_b_stability': np.array([6, 6, 6]) * n,
+               'gyro_b_corr': np.array([100.0, 100.0, 100.0]),
+               'accel_b': np.array([50.0e-3, 50.0e-3, 50.0e-3]) * 0.0,
+               'accel_vrw': np.array([0.05, 0.05, 0.05]) * n,
+               'accel_b_stability': np.array([2e-5 * 9.8, 2e-5 * 9.8, 2e-5 * 9.8]) * n,
+               'accel_b_corr': np.array([200.0, 200.0, 200.0]),
+               'mag_std': np.array([0.2, 0.2, 0.2]) * n
+              }
+
+    imu_err_IMU330 = {'gyro_b': np.array([0.0, 0.0, 0.0]) * n,
+               'gyro_arw': np.array([0.2, 0.2, 0.2]) * n,
+               'gyro_b_stability': np.array([1.5, 1.5, 1.5]) * n,
+               'gyro_b_corr': np.array([100.0, 100.0, 100.0]),
+               'accel_b': np.array([50.0e-3, 50.0e-3, 50.0e-3]) * 0.0,
+               'accel_vrw': np.array([0.04, 0.04, 0.04]) * n,
+               'accel_b_stability': np.array([2e-5 * 9.8, 2e-5 * 9.8, 2e-5 * 9.8]) * n,
+               'accel_b_corr': np.array([200.0, 200.0, 200.0]),
+               'mag_std': np.array([0.2, 0.2, 0.2]) * n
+              }
+
     # do not generate GPS and magnetometer data
-    imu = imu_model.IMU(accuracy=imu_err, axis=9, gps=False)
+    imu = imu_model.IMU(accuracy=imu_err_IMU381, axis=9, gps=False)
 
     #### Algorithm
     # OpenIMU300ZI VG algorithm
