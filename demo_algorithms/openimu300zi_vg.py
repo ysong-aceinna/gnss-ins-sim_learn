@@ -16,6 +16,7 @@ import math
 import numpy as np
 from ctypes import *
 from gnss_ins_sim.utility import utility
+import _ctypes
 
 # globals
 VERSION = '1.0'
@@ -77,8 +78,9 @@ class OpenIMU300ZISim(object):
         if not (os.path.exists(self.sim_lib)):
             if not self.build_lib():
                 raise OSError('Shared libs not found.')
+        self.config_file = config_file
         self.sim_engine = cdll.LoadLibrary(self.sim_lib)
-        self.sim_engine.parseConfigFile(c_char_p(config_file.encode('utf-8')))
+        self.sim_engine.parseConfigFile(c_char_p(self.config_file.encode('utf-8')))
         # initialize algorithm
         self.sim_engine.SimInitialize()
 
@@ -97,7 +99,7 @@ class OpenIMU300ZISim(object):
         # np.save("motion_data.npy", set_of_input)
         # return
         # set_of_input = np.load( "ahrs-90deg_noise.npy" )
-        
+
         fs = set_of_input[0]
         gyro = set_of_input[1]
         accel = set_of_input[2]
@@ -161,8 +163,11 @@ class OpenIMU300ZISim(object):
         '''
         Reset the fusion process to uninitialized state.
         '''
-        # self.sim_engine = cdll.LoadLibrary(self.sim_lib)
-        # self.sim_engine.SimInitialize(pointer(self.sim_config))
+        # free library ref: https://www.programcreek.com/python/example/56939/_ctypes.FreeLibrary
+        _ctypes.dlclose(self.sim_engine._handle)
+        self.sim_engine = cdll.LoadLibrary(self.sim_lib)
+        self.sim_engine.parseConfigFile(c_char_p(self.config_file.encode('utf-8')))
+        self.sim_engine.SimInitialize()
 
     def build_lib(self, dst_dir=None, src_dir=None):
         '''
@@ -180,9 +185,7 @@ class OpenIMU300ZISim(object):
         # get dir containing the source code
         if src_dir is None:
             src_dir = os.path.join(this_dir, 
-                    # '/Users/songyang/project/code/c_projects/dmu380_sim_src//')
                     '/Users/songyang/project/code/github/dmu380_sim_src')
-                    # '/media/psf/Home/project/code/github/dmu380_sim_src')
         if not os.path.exists(src_dir):
             print('Source code directory ' + src_dir + ' does not exist.')
             return False
