@@ -95,10 +95,10 @@ class OpenIMU300ZISim(object):
                 mag: numpy array of size (n,3), Gauss
         '''
         # get input
-        # utility.save_motion_data(self.input, set_of_input)
-        # np.save("motion_data.npy", set_of_input)
+        utility.save_motion_data(self.input, set_of_input)
+        np.save("motion_def_[330+noise+vib[0.5 0.4 0.65]]-3.npy", set_of_input)
         # return
-        # set_of_input = np.load( "ahrs-90deg_noise.npy" )
+        # set_of_input = np.load( "./virtual_data/npy/motion_def_[330+noise+vib[0.5 0.4 0.65]].npy" )
 
         fs = set_of_input[0]
         gyro = set_of_input[1]

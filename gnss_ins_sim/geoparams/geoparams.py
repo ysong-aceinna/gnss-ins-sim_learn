@@ -17,10 +17,10 @@ import numpy as np
 VERSION = '1.0'
 GM = 3.986004418e14                 # m3/(s2)   万有引力常量G * 地球质量 M : 6.67*10^-11 * 5.9722*10^24
 Re = 6378137                        # m 地球赤道半径
-FLATTENING = 0.00335281066475       # Earth flattening, f = (a-b)/a
-ECCENTRICITY = 0.0818191908426215   # Earth eccentricy, e2 = 2*f-f^2   e
-E_SQR = 0.00669437999014            # squared eccentricity. e2
-W_IE = 7292115e-11                  # Earth's rotation rate 地球自转的角速度，rad/s
+FLATTENING = 0.00335281066475       # Earth flattening, f = (a-b)/a    地球扁率
+ECCENTRICITY = 0.0818191908426215   # Earth eccentricy, e2 = 2*f-f^2   地球离心率e
+E_SQR = 0.00669437999014            # squared eccentricity. e2          e的平方。
+W_IE = 7292115e-11                  # Earth's rotation rate 地球自转的角速度，rad/s    即 2π/(24*3600)，即24*3600秒转了2π。
 
 def geo_param(pos):
     """
@@ -29,15 +29,15 @@ def geo_param(pos):
     Args:
         pos: [Lat, Lon, Alt], rad, m
     Returns:
-        rm: meridian radius, m
-        rn: normal radius, m
+        rm: meridian radius, m      rm:子午圈曲率半径，貌似rm和rn没有用到。
+        rn: normal radius, m        rn:卯酉圈曲率半径
         g: gravity, m/s/s
         sl: sin(Lat)
         cl: cos(lat)
         w_ie: Earth's rotation rate w.r.t the inertial frame, rad/s
     """
     # some constants
-    normal_gravity = 9.7803253359
+    normal_gravity = 9.7803253359       #赤道加速度
     k = 0.00193185265241        # WGS-84 gravity model constant. For more details, refer to
                                 # https://en.wikipedia.org/wiki/Gravity_of_Earth
                                 # k = (b*Gp-a*Ge)/(a*Ge), a和b是地球长短轴，Ge和Gp分别为赤道和南北极的重力加速度。

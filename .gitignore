@@ -16,6 +16,8 @@ __pycache__/
 
 /virtual_data/
 
+/demo_algorithms/dmu380_sim_lib/
+
 *.npy
 
 # for mac

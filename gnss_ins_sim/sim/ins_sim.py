@@ -321,6 +321,10 @@ class Sim(object):
 
         #### error statistics of algorithm output
         err_stats_header_line = False
+        max_errs = np.array([])
+        mean_errs = np.array([])
+        std_errs = np.array([])
+
         for data_name in self.interested_error:
             if data_name not in self.dmgr.available:
                 continue
@@ -346,12 +350,28 @@ class Sim(object):
                         self.sum += '\t\t--Max error: ' + str(err_stats['max'][sim_run]) + '\n'
                         self.sum += '\t\t--Avg error: ' + str(err_stats['avg'][sim_run]) + '\n'
                         self.sum += '\t\t--Std of error: ' + str(err_stats['std'][sim_run]) + '\n'
+
+                        if max_errs.shape[0] == 0:
+                            max_errs = err_stats['max'][sim_run]
+                            mean_errs = err_stats['avg'][sim_run]
+                            std_errs = err_stats['std'][sim_run]
+                        else:
+                            max_errs = np.vstack((max_errs, err_stats['max'][sim_run]))
+                            mean_errs = np.vstack((mean_errs, err_stats['avg'][sim_run]))
+                            std_errs = np.vstack((std_errs, err_stats['std'][sim_run]))
+
                 else:
                     self.sum += '\t--Max error: ' + str(err_stats['max']) + '\n'
                     self.sum += '\t--Avg error: ' + str(err_stats['avg']) + '\n'
                     self.sum += '\t--Std of error: ' + str(err_stats['std']) + '\n'
 
         print(self.sum)
+
+        if isinstance(err_stats['max'], dict):
+            if max_errs.size != 3: # if not a single test.
+                print("mean of Max error: ",np.mean(max_errs, axis=0))
+                print("mean of Mean error: ",np.mean(mean_errs, axis=0))
+                print("mean of Std error: ",np.mean(std_errs, axis=0))
 
         #### Allan analysis results ####
         '''

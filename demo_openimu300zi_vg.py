@@ -69,19 +69,27 @@ def test_openimu300zi_sim():
 
     #### start simulation
     sim = ins_sim.Sim([fs, 0.0, fs],
-                      motion_def_path+"//motion_def-90deg_turn.csv", # motion_def motion_def-90deg_turn   motion_def-static
+                      motion_def_path+"//motion_def.csv", # motion_def motion_def-90deg_turn   motion_def-static
                     #   ".//demo_saved_data//car_test_20180929//",
                       ref_frame=1,
                       imu=imu,
-                      mode=None,
-                      env=None,#'[0.1 0.01 0.11]g-random',
+                      # mode=None,
+                      # env=None,
+                      # env='[0.1 0.01 0.11]g-random',
+                      # env='[0.05 0.005 0.055]g-random',
+                      env='[0.5 0.4 0.65]-random',
+                      # env='[0.3 0.3 0.5]-random',
+                      # env='[0.1 0.1 0.2]-random',
+                      # env='[0.1 0.2 0.3]g-10Hz-sinusoidal',
                       algorithm=algo)
     sim.run(1)
     # generate simulation results, summary, and save data to files
     sim.results()  # do not save data
+    # sim.results('.//demo_saved_data//tmp', gen_kml=True)
+
     # plot data
-    sim.plot(['att_euler'])
-    # sim.plot(['att_euler'], opt={'att_euler':'error'})
+    # sim.plot(['att_euler'])
+    sim.plot(['att_euler','wb'], opt={'att_euler':'error'})
 
 if __name__ == '__main__':
     test_openimu300zi_sim()
