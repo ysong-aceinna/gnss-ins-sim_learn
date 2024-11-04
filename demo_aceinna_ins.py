@@ -32,7 +32,7 @@ def test_dmu380_sim():
                'accel_b': np.array([5.0e-3, 5.0e-3, 5.0e-3]) * 0.0e1,
                'accel_vrw': np.array([0.03119, 0.03009, 0.04779]) * 1.0e0,
                'accel_b_stability': np.array([4.29e-5, 5.72e-5, 8.02e-5]) * 1.0e0,
-               'accel_b_corr': np.array([200.0, 200.0, 200.0]),
+               'accel_b_corr': np.array([200.0, 200.0, 200.0]),  #一阶马尔科夫模型中的相关时间为200 sec.
                'mag_std': np.array([0.2, 0.2, 0.2]) * 1.0
               }
     gps_err = {'stdp': np.array([5.0, 5.0, 7.0]) * 0.2,

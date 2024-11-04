@@ -95,6 +95,8 @@ class FreeIntegration(object):
                     c_bn = attitude.euler2dcm(self.att[i, :])
                     self.vel[i, :] = c_bn.T.dot(self.vel_b[i, :])
                     continue
+
+                break  # do not run algorithm simulation.
                 #### propagate Euler angles
                 self.att[i, :] = attitude.euler_update_zyx(self.att[i-1, :], gyro[i-1, :], self.dt)
                 #### velocity is from odometer

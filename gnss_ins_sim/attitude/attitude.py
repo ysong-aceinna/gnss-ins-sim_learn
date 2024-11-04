@@ -729,7 +729,7 @@ def rotation_quat(w, dt):
         rot_quat: rotation quaternion corresponds to w and dt
     '''
     rot_vec = w * dt                    # rotation vector
-    theta = math.sqrt(np.dot(rot_vec, rot_vec))    # rotation angle
+    theta = math.sqrt(np.dot(rot_vec, rot_vec))    # rotation angle.   sqrt(wx^2 + wy^2 + wz^2 )理解为合角速度。
     half_theta = 0.5 * theta            # half rotation angle
     s = math.sin(half_theta)
     c = math.cos(half_theta)

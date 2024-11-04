@@ -11,6 +11,8 @@ Created on 2017-12-20
 import numpy as np
 from gnss_ins_sim.attitude import attitude
 from gnss_ins_sim.geoparams import geoparams
+import math
+import scipy.io
 
 class FreeIntegration(object):
     '''
@@ -74,6 +76,20 @@ class FreeIntegration(object):
         gyro = set_of_input[2]
         accel = set_of_input[3]
         n = accel.shape[0]
+        
+        # gyro = set_of_input[2] * 180/math.pi
+        # accel = set_of_input[3]/9.79483913
+
+        # gyro = np.array(gyro)
+        # accel = np.array(accel)
+        
+        # # data = np.append(accel, gyro)
+        # imu = np.concatenate((accel, gyro), axis=1)
+        # data = {}
+        # data['imu'] = imu
+        # scipy.io.savemat('data_imu.mat', data)
+
+
         # Free IMU integration
         self.att = np.zeros((n, 3))
         self.pos = np.zeros((n, 3))
@@ -88,7 +104,8 @@ class FreeIntegration(object):
             # Earth gravity
             if self.gravity is None:
                 earth_param = geoparams.geo_param(self.r0)    # geo parameters
-                g_n = np.array([0, 0, earth_param[2]])
+                g_n = np.array([0, 0, 9.79483913])
+                # g_n = np.array([0, 0, earth_param[2]])9.79483913
             else:
                 g_n = np.array([0, 0, self.gravity[idx]])
             for i in range(n):

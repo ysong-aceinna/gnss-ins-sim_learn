@@ -43,11 +43,16 @@ class FreeIntegration(object):
 
         # get input
         gyro = data[:,3:6]  * D2R # 注意：需要将csv中gyro和rpy的单位转换为 [rad/s],[rad]
-        accel = data[:,0:3]/self.gravity
+        accel = data[:,0:3]
         n = accel.shape[0]
 
+        # 取gyro前2500个静态值求bias,并从gyro中去除。 
+        w_bias = gyro[0:500,:]
+        w_bias = np.mean(w_bias, 0)
+        gyro -= w_bias;
+
         # Free IMU integration
-        att = np.zeros((n, 3))
+        att = np.zeros((n, 3)) * np.nan
         pos = np.zeros((n, 3))
         vel = np.zeros((n, 3))     # NED vel
         vel_b = np.zeros((n, 3))   # body vel
@@ -59,12 +64,23 @@ class FreeIntegration(object):
 
         # Earth gravity
         g_n = np.array([0, 0, self.gravity])
-        start_idx = 0
+        start_idx = 499
         for i in range(n):
         # for i in range(start_idx, start_idx+250):
             #### initialize
+            if i < start_idx:
+                continue
+
+            # 手动添加SF Error
+            # gyro[i-1, 2] = gyro[i-1, 2] * 0.99
+
             if i == start_idx:
                 att0 = data[start_idx,6:9][::-1] # csv中的顺序是rpy, 反转成ypr.
+                # 手动设置初始YPR
+                # att0[0] = 0.272562000000000
+                # att0[1] = 0.211109000000000
+                # att0[2] = 25.896300000000000
+
                 att0 = att0.T * D2R
 
                 att[i, :] = att0
@@ -97,14 +113,20 @@ class FreeIntegration(object):
         tmp["att"] = att / D2R;      # [deg]
         tmp["pos"] = pos;            # [m]
         tmp["vel"] = vel;            # [m/s]
-        mat_path = '/Users/songyang/project/code/github/python-openimu/data/20210331_091111/a.mat'
+        # mat_path = '/Users/songyang/project/analyze/drive_test/Hitachi/2021-6-23/analyze/case2-arm-dr.mat'
+        # mat_path = '/Users/songyang/project/analyze/drive_test/SANY/2021-9-17/analyze/FR_Test2_335_rj1.mat'
+        mat_path = '/Users/songyang/project/analyze/drive_test/SANY/2021-8-11/analyze/czr/FR_case1_bucket.mat'
         io.savemat(mat_path, tmp)
 
         pass
 
 
 if __name__ == '__main__':
-    csvFile = '/Users/songyang/project/code/github/python-openimu/data/20210331_091111/dr.csv'
+    # csvFile = '/Users/songyang/project/analyze/drive_test/Hitachi/2021-6-23/data/sim/sim_case2_82.csv'
+    # csvFile = '/Users/songyang/project/analyze/drive_test/SANY/2021-9-17/data/sim/sim_test2_335_reject_outlier的副本.csv'
+    # csvFile = '/Users/songyang/project/analyze/drive_test/Hitachi/2021-12-10/data/sim/sim_case_80的副本.csv'
+    # csvFile = '/Users/songyang/project/analyze/drive_test/Hitachi/2022-3-3/data/sim/add_30sec_Static/sim_ch5_83的副本.csv'
+    csvFile = '/Users/songyang/project/analyze/drive_test/SANY/2021-8-11/data/sim/sim/sim_case1_bucket1.csv'
     fi = FreeIntegration(csvFile)
     fi.run()
     pass
